@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Tracking</title>
+  <style>
+    :root {
+      --bg: #0f1419; --surface: #1a2332; --border: #2d3a4f; --text: #e7ecf3;
+      --muted: #8b9cb3; --accent: #3b82f6; --accent-hover: #2563eb;
+      --success: #22c55e; --error: #ef4444; --warn: #f59e0b;
+      --warn-bg: #422006; --warn-border: #854d0e; --warn-text: #fde68a;
+      --purple: #8b5cf6;
+      --s-delivered: #052e16; --s-delivered-text: #bbf7d0; --s-delivered-border: #166534;
+      --s-replied:   #172554; --s-replied-text:   #bfdbfe; --s-replied-border:   #1e40af;
+      --s-coffee:    #1c1917; --s-coffee-text:    #fed7aa; --s-coffee-border:    #92400e;
+      --s-ghosted:   #1c1917; --s-ghosted-text:   #d1d5db; --s-ghosted-border:   #4b5563;
+      --s-bounced:   #450a0a; --s-bounced-text:   #fecaca; --s-bounced-border:   #991b1b;
+      --s-other:     #1a1a2e; --s-other-text:     #e9d5ff; --s-other-border:     #6d28d9;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 0 0 4rem; line-height: 1.5; }
+
+    /* ── Navbar ── */
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; gap: 2rem; height: 52px; }
+    nav .brand { font-weight: 700; font-size: 1rem; color: var(--text); text-decoration: none; }
+    nav a { color: var(--muted); text-decoration: none; font-size: 0.9rem; padding: 0.3rem 0.75rem; border-radius: 6px; }
+    nav a:hover { background: var(--border); color: var(--text); }
+    nav a.active { background: var(--accent); color: #fff; }
+
+    .wrap { max-width: 1200px; margin: 0 auto; padding: 2rem 1.5rem; }
+    h1 { font-size: 1.4rem; font-weight: 600; margin: 0 0 0.25rem; }
+    .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+
+    /* ── Add form ── */
+    .add-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; display: none; }
+    .add-card.open { display: block; }
+    .add-card h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin: 0 0 1rem; }
+    .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.75rem; }
+    @media(max-width:700px){ .grid3,.grid2 { grid-template-columns: 1fr; } }
+    label.fl { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 0.25rem; }
+    input[type="text"], input[type="email"], select, textarea {
+      width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); padding: 0.55rem 0.7rem; font-size: 0.9rem; font-family: inherit;
+    }
+    textarea { resize: vertical; min-height: 60px; }
+    .btn-row { display: flex; gap: 0.75rem; margin-top: 1rem; }
+    button { cursor: pointer; border: none; border-radius: 6px; padding: 0.6rem 1.1rem; font-size: 0.9rem; font-weight: 500; }
+    .btn-primary   { background: var(--accent);  color: #fff; }
+    .btn-primary:hover   { background: var(--accent-hover); }
+    .btn-secondary { background: var(--border);  color: var(--text); }
+    .btn-secondary:hover { background: #3d4f6a; }
+    .btn-danger    { background: #450a0a; color: #fca5a5; border: 1px solid #991b1b; font-size: 0.8rem; padding: 0.35rem 0.7rem; }
+    .btn-danger:hover { background: #7f1d1d; }
+
+    /* ── Toolbar ── */
+    .toolbar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
+    .toolbar .count { color: var(--muted); font-size: 0.88rem; white-space: nowrap; }
+    .toolbar-right { display: flex; align-items: center; gap: 0.75rem; margin-left: auto; flex-wrap: wrap; }
+    input.search { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 0.55rem 0.75rem; font-size: 0.88rem; width: 200px; }
+    select.filter-sel { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 0.55rem 0.75rem; font-size: 0.88rem; cursor: pointer; }
+
+    /* ── Table ── */
+    .tbl-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    thead th { background: var(--surface); color: var(--muted); font-weight: 600; text-align: left; padding: 0.6rem 0.85rem; border-bottom: 1px solid var(--border); white-space: nowrap; position: sticky; top: 0; }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:hover { background: rgba(59,130,246,0.04); }
+    td { padding: 0.6rem 0.85rem; vertical-align: middle; }
+    td.muted { color: var(--muted); font-size: 0.83rem; }
+
+    /* status badge */
+    .badge { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 10px; border: 1px solid; white-space: nowrap; }
+    .badge-Delivered         { background: var(--s-delivered); color: var(--s-delivered-text); border-color: var(--s-delivered-border); }
+    .badge-Replied           { background: var(--s-replied);   color: var(--s-replied-text);   border-color: var(--s-replied-border); }
+    .badge-Coffee\ Chat\ Scheduled { background: var(--s-coffee); color: var(--s-coffee-text); border-color: var(--s-coffee-border); }
+    .badge-Ghosted           { background: var(--s-ghosted);   color: var(--s-ghosted-text);   border-color: var(--s-ghosted-border); }
+    .badge-Bounced           { background: var(--s-bounced);   color: var(--s-bounced-text);   border-color: var(--s-bounced-border); }
+    .badge-Other             { background: var(--s-other);     color: var(--s-other-text);     border-color: var(--s-other-border); }
+
+    /* inline editable select */
+    select.inline { background: var(--bg); border: 1px solid var(--border); border-radius: 5px; color: var(--text); padding: 0.3rem 0.5rem; font-size: 0.83rem; cursor: pointer; }
+    /* inline editable text input */
+    input.inline-input { background: transparent; border: 1px solid transparent; border-radius: 5px; color: var(--text); padding: 0.3rem 0.5rem; font-size: 0.83rem; width: 100%; }
+    input.inline-input:hover { border-color: var(--border); }
+    input.inline-input:focus { border-color: var(--accent); outline: none; background: var(--bg); }
+    input.inline-input.muted { color: var(--muted); }
+    textarea.inline { background: var(--bg); border: 1px solid transparent; border-radius: 5px; color: var(--text); padding: 0.3rem 0.5rem; font-size: 0.83rem; width: 100%; min-height: 36px; resize: none; overflow: hidden; line-height: 1.4; }
+    textarea.inline:focus { border-color: var(--accent); outline: none; }
+    .saved-flash { color: var(--success); font-size: 0.75rem; margin-left: 4px; opacity: 0; transition: opacity 0.3s; }
+    .saved-flash.show { opacity: 1; }
+
+    /* type pill */
+    .type-pill { font-size: 0.78rem; background: #1a1a2e; color: #a78bfa; border: 1px solid #4c1d95; border-radius: 10px; padding: 0.15rem 0.55rem; white-space: nowrap; }
+
+    .empty { text-align: center; color: var(--muted); padding: 3rem; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="brand" href="/">Cold Email Sender</a>
+  <a href="/">Send Emails</a>
+  <a href="/tracking" class="active">Tracking</a>
+</nav>
+
+<div class="wrap">
+  <h1>Email Tracking</h1>
+  <p class="sub">All sent contacts — edit status or notes inline, or add existing contacts manually.</p>
+
+  {% if not db_available %}
+  <div style="background:var(--warn-bg);border:1px solid var(--warn-border);color:var(--warn-text);padding:0.75rem 1rem;border-radius:6px;margin-bottom:1rem;font-size:0.9rem;">
+    Tracking database is offline. Start MySQL in Workbench, then refresh this page. Emails can still be sent from the Send Emails page.
+  </div>
+  {% endif %}
+
+  <!-- Add form -->
+  <div class="add-card" id="add-card">
+    <h2>Add contact manually</h2>
+    <div class="grid3">
+      <div>
+        <label class="fl">Company name</label>
+        <input type="text" id="f-company" placeholder="e.g. Ford Motor Company">
+      </div>
+      <div>
+        <label class="fl">Person name</label>
+        <input type="text" id="f-person" placeholder="e.g. Jane Smith">
+      </div>
+      <div>
+        <label class="fl">Email</label>
+        <input type="email" id="f-email" placeholder="jane@company.com">
+      </div>
+    </div>
+    <div class="grid2">
+      <div>
+        <label class="fl">Type</label>
+        <select id="f-type">
+          <option value="">-- select --</option>
+          <option value="cmu_alumni">CMU Alumni</option>
+          <option value="recruiter">Recruiter</option>
+          <option value="it_employee">Employee in IT dept</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="fl">Status</label>
+        <select id="f-status">
+          <option value="Delivered">Delivered</option>
+          <option value="Replied">Replied</option>
+          <option value="Coffee Chat Scheduled">Coffee Chat Scheduled</option>
+          <option value="Ghosted">Ghosted</option>
+          <option value="Bounced">Bounced</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:0.75rem;">
+      <label class="fl">Notes</label>
+      <textarea id="f-notes" placeholder="Any notes…"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn-primary" id="btn-save-contact">Save contact</button>
+      <button class="btn-secondary" id="btn-cancel-add">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <button class="btn-primary" id="btn-add-contact">+ Add contact</button>
+    <div class="toolbar-right">
+      <input class="search" type="text" id="search-input" placeholder="Search by name, email, company…">
+      <select id="status-filter" class="filter-sel">
+        <option value="">All statuses</option>
+        <option value="Delivered">Delivered</option>
+        <option value="Replied">Replied</option>
+        <option value="Coffee Chat Scheduled">Coffee Chat Scheduled</option>
+        <option value="Ghosted">Ghosted</option>
+        <option value="Bounced">Bounced</option>
+        <option value="Other">Other</option>
+      </select>
+      <span class="count" id="row-count"></span>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="tbl-wrap">
+    <table id="contacts-table">
+      <thead>
+        <tr>
+          <th>Company</th>
+          <th>Person</th>
+          <th>Email</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Notes</th>
+          <th>Sent At</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="contacts-tbody">
+        <tr><td colspan="8" class="empty">Loading…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  const TYPE_LABELS = {
+    cmu_alumni:  "CMU Alumni",
+    recruiter:   "Recruiter",
+    it_employee: "IT Employee",
+    other:       "Other",
+  };
+  const STATUSES = [
+    "Delivered", "Replied", "Coffee Chat Scheduled",
+    "Ghosted", "Bounced", "Other"
+  ];
+
+  let allContacts = [];
+
+  // ── Load contacts ─────────────────────────────────────────────────────────
+  async function loadContacts() {
+    const res  = await fetch("/api/contacts");
+    const data = await res.json();
+    if (!data.ok) { alert("Failed to load: " + data.error); return; }
+    allContacts = data.contacts;
+    renderTable(allContacts);
+  }
+
+  function renderTable(contacts) {
+    const tbody = document.getElementById("contacts-tbody");
+    document.getElementById("row-count").textContent = `${contacts.length} record${contacts.length !== 1 ? "s" : ""}`;
+    if (contacts.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty">No contacts yet. Send an email or add one manually.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = contacts.map(c => `
+      <tr data-id="${c.id}">
+        <td><input class="inline-input" data-id="${c.id}" data-field="company_name" value="${esc(c.company_name)}"></td>
+        <td><input class="inline-input" data-id="${c.id}" data-field="person_name"  value="${esc(c.person_name)}"></td>
+        <td><input class="inline-input muted" data-id="${c.id}" data-field="email" value="${esc(c.email)}"></td>
+        <td>
+          <select class="inline type-sel" data-id="${c.id}" data-field="type">
+            <option value="">--</option>
+            <option value="cmu_alumni"  ${c.type==="cmu_alumni"  ? "selected":""}>CMU Alumni</option>
+            <option value="recruiter"   ${c.type==="recruiter"   ? "selected":""}>Recruiter</option>
+            <option value="it_employee" ${c.type==="it_employee" ? "selected":""}>IT Employee</option>
+            <option value="other"       ${c.type==="other"       ? "selected":""}>Other</option>
+          </select>
+        </td>
+        <td>
+          <select class="inline status-sel" data-id="${c.id}" data-field="status">
+            ${STATUSES.map(s => `<option value="${s}" ${c.status === s ? "selected" : ""}>${s}</option>`).join("")}
+          </select>
+          <span class="saved-flash" id="flash-${c.id}">Saved</span>
+        </td>
+        <td>
+          <textarea class="inline notes-ta" data-id="${c.id}" data-field="notes" rows="1">${esc(c.notes || "")}</textarea>
+        </td>
+        <td class="muted">${esc(c.sent_at || "")}</td>
+        <td>
+          <button class="btn-danger del-btn" data-id="${c.id}">Delete</button>
+        </td>
+      </tr>
+    `).join("");
+
+    // Inline text inputs (company, person, email) — save on blur
+    tbody.querySelectorAll(".inline-input").forEach(inp => {
+      inp.addEventListener("blur", () => saveField(inp.dataset.id, inp.dataset.field, inp.value));
+      inp.addEventListener("keydown", e => { if (e.key === "Enter") inp.blur(); });
+    });
+
+    // Type select
+    tbody.querySelectorAll(".type-sel").forEach(sel => {
+      sel.addEventListener("change", () => saveField(sel.dataset.id, "type", sel.value));
+    });
+
+    // Inline status change
+    tbody.querySelectorAll(".status-sel").forEach(sel => {
+      sel.addEventListener("change", () => saveField(sel.dataset.id, "status", sel.value));
+    });
+
+    // Notes auto-save on blur
+    tbody.querySelectorAll(".notes-ta").forEach(ta => {
+      // Auto-size on load
+      ta.style.height = "auto";
+      ta.style.height = ta.scrollHeight + "px";
+      ta.addEventListener("blur", () => saveField(ta.dataset.id, "notes", ta.value));
+      // Auto-resize on type
+      ta.addEventListener("input", () => {
+        ta.style.height = "auto";
+        ta.style.height = ta.scrollHeight + "px";
+      });
+    });
+    // Delete
+    tbody.querySelectorAll(".del-btn").forEach(btn => {
+      btn.addEventListener("click", () => deleteRow(btn.dataset.id));
+    });
+  }
+
+  async function saveField(id, field, value) {
+    await fetch(`/api/contacts/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ [field]: value }),
+    });
+    const flash = document.getElementById(`flash-${id}`);
+    if (flash) {
+      flash.classList.add("show");
+      setTimeout(() => flash.classList.remove("show"), 1500);
+    }
+  }
+
+  async function deleteRow(id) {
+    if (!confirm("Delete this contact?")) return;
+    await fetch(`/api/contacts/${id}`, { method: "DELETE" });
+    allContacts = allContacts.filter(c => c.id != id);
+    renderTable(filterContacts());
+  }
+
+  // ── Search & Filter ───────────────────────────────────────────────────────
+  function filterContacts() {
+    const q  = document.getElementById("search-input").value.toLowerCase();
+    const st = document.getElementById("status-filter").value;
+    return allContacts.filter(c => {
+      const matchSearch = !q ||
+        (c.company_name || "").toLowerCase().includes(q) ||
+        (c.person_name  || "").toLowerCase().includes(q) ||
+        (c.email        || "").toLowerCase().includes(q);
+      const matchStatus = !st || c.status === st;
+      return matchSearch && matchStatus;
+    });
+  }
+  document.getElementById("search-input").addEventListener("input",  () => renderTable(filterContacts()));
+  document.getElementById("status-filter").addEventListener("change", () => renderTable(filterContacts()));
+
+  // ── Add contact form ──────────────────────────────────────────────────────
+  document.getElementById("btn-add-contact").addEventListener("click", () => {
+    document.getElementById("add-card").classList.add("open");
+    document.getElementById("btn-add-contact").style.display = "none";
+  });
+  document.getElementById("btn-cancel-add").addEventListener("click", () => {
+    document.getElementById("add-card").classList.remove("open");
+    document.getElementById("btn-add-contact").style.display = "";
+  });
+  document.getElementById("btn-save-contact").addEventListener("click", async () => {
+    const body = {
+      company_name: document.getElementById("f-company").value.trim(),
+      person_name:  document.getElementById("f-person").value.trim(),
+      email:        document.getElementById("f-email").value.trim(),
+      type:         document.getElementById("f-type").value,
+      status:       document.getElementById("f-status").value,
+      notes:        document.getElementById("f-notes").value.trim(),
+    };
+    if (!body.person_name && !body.email) { alert("Enter at least a name or email."); return; }
+    const res  = await fetch("/api/contacts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!data.ok) { alert("Error: " + data.error); return; }
+    // Clear form and reload
+    ["f-company","f-person","f-email","f-notes"].forEach(id => document.getElementById(id).value = "");
+    document.getElementById("f-type").value = "";
+    document.getElementById("f-status").value = "Delivered";
+    document.getElementById("add-card").classList.remove("open");
+    document.getElementById("btn-add-contact").style.display = "";
+    await loadContacts();
+  });
+
+  function esc(s) {
+    return String(s ?? "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+  }
+
+  loadContacts();
+</script>
+</body>
+</html>

@@ -1,0 +1,6 @@
+flask>=3.0.0
+pywin32>=306
+python-dotenv>=1.0.0
+playwright>=1.40.0
+groq>=0.9.0
+mysql-connector-python>=9.0.0

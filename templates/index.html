@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cold Email Sender</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --border: #2d3a4f;
+      --text: #e7ecf3;
+      --muted: #8b9cb3;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --purple: #8b5cf6;
+      --purple-hover: #7c3aed;
+      --success: #22c55e;
+      --error: #ef4444;
+      --warn-bg: #422006; --warn-border: #854d0e; --warn-text: #fde68a;
+      --ok-bg: #052e16;   --ok-border: #166534;   --ok-text: #bbf7d0;
+      --err-bg: #450a0a;  --err-border: #991b1b;  --err-text: #fecaca;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 2rem 1rem 4rem; line-height: 1.5; }
+    .wrap { max-width: 860px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; font-weight: 600; margin: 0 0 0.15rem; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 0 0 1rem; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; font-size: 0.78rem; }
+    .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem 1.5rem; margin-bottom: 1rem; }
+    .card.ai-card { border-color: #4c3a7a; background: #1a1a2e; }
+    label { display: block; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.35rem; color: var(--muted); }
+    input[type="text"], input[type="number"], select, textarea {
+      width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--text); padding: 0.6rem 0.75rem; font-size: 0.95rem; font-family: inherit;
+    }
+    textarea { resize: vertical; font-family: Consolas, monospace; font-size: 0.85rem; }
+    .ta-resume { min-height: 160px; }
+    .ta-jd     { min-height: 160px; }
+    .ta-body   { min-height: 240px; }
+    #recipients { min-height: 100px; }
+    .field { margin-bottom: 1rem; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media(max-width:600px){ .two-col { grid-template-columns: 1fr; } }
+    .row { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-end; }
+    .row .field { flex: 1; min-width: 180px; }
+    .hint { font-size: 0.78rem; color: var(--muted); margin-top: 0.3rem; }
+    .actions { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.25rem; }
+    button { cursor: pointer; border: none; border-radius: 6px; padding: 0.65rem 1.25rem; font-size: 0.95rem; font-weight: 500; }
+    .btn-primary   { background: var(--accent);  color: #fff; }
+    .btn-primary:hover   { background: var(--accent-hover); }
+    .btn-purple    { background: var(--purple);  color: #fff; }
+    .btn-purple:hover    { background: var(--purple-hover); }
+    .btn-secondary { background: var(--border);  color: var(--text); }
+    .btn-secondary:hover { background: #3d4f6a; }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    #preview-box, #results-box {
+      display: none; white-space: pre-wrap; font-family: Consolas, monospace; font-size: 0.83rem;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+      padding: 1rem; margin-top: 0.75rem; max-height: 300px; overflow: auto;
+    }
+    #results-box .ok   { color: var(--success); }
+    #results-box .fail { color: var(--error); }
+    .alert { padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1rem; font-size: 0.9rem; }
+    .alert-warn { background: var(--warn-bg); border: 1px solid var(--warn-border); color: var(--warn-text); }
+    .alert-err  { background: var(--err-bg);  border: 1px solid var(--err-border);  color: var(--err-text); }
+    .alert-ok   { background: var(--ok-bg);   border: 1px solid var(--ok-border);   color: var(--ok-text); }
+    .status-msg { margin-top: 1rem; font-size: 0.9rem; color: var(--muted); min-height: 1.2em; }
+    input.locked { opacity: 0.7; cursor: not-allowed; background: #151c28; border-color: #243044; }
+    .signin-row { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    .signin-row span.label { font-weight: 600; }
+    #signin-badge { font-size: 0.8rem; padding: 0.25rem 0.65rem; border-radius: 12px; }
+    .badge-ok  { background: var(--ok-bg);  color: var(--ok-text);  border: 1px solid var(--ok-border); }
+    .badge-off { background: var(--err-bg); color: var(--err-text); border: 1px solid var(--err-border); }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 1.25rem 0; }
+    #other-position { display: none; margin-top: 0.5rem; }
+    .ai-label { color: #a78bfa; font-size: 0.85rem; font-weight: 500; margin-bottom: 0.35rem; display: block; }
+    select { cursor: pointer; }
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    nav { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; gap: 2rem; height: 52px; margin-bottom: 1.5rem; }
+    nav .brand { font-weight: 700; font-size: 1rem; color: var(--text); text-decoration: none; }
+    nav a { color: var(--muted); text-decoration: none; font-size: 0.9rem; padding: 0.3rem 0.75rem; border-radius: 6px; }
+    nav a:hover { background: var(--border); color: var(--text); }
+    nav a.active { background: var(--accent); color: #fff; }
+  </style>
+</head>
+<body>
+<nav>
+  <a class="brand" href="/">Cold Email Sender</a>
+  <a href="/" class="active">Send Emails</a>
+  <a href="/tracking">Tracking</a>
+</nav>
+<div class="wrap">
+  <h1>Cold Email Sender</h1>
+  <p class="sub">Generate personalized emails with AI, then send directly from your CMU Outlook.</p>
+
+  <!-- Status + Sign-in -->
+  <div class="card">
+    <div class="signin-row">
+      <span class="label">Outlook Web</span>
+      <span id="signin-badge" class="{{ 'badge-ok' if status.owa_logged_in else 'badge-off' }}">
+        {{ 'Signed in ✓' if status.owa_logged_in else 'Not signed in' }}
+      </span>
+      <button type="button" class="btn-primary" id="btn-owa-login" style="{{ 'display:none' if status.owa_logged_in else '' }}">Sign in to Outlook</button>
+      <button type="button" class="btn-secondary" id="btn-owa-logout" style="{{ '' if status.owa_logged_in else 'display:none' }}">Sign out</button>
+      <span style="flex:1; font-size:0.85rem; color:var(--muted);" id="status-bar">{{ status.message }}</span>
+    </div>
+  </div>
+
+  {% if not db_available %}
+  <div class="alert alert-warn" style="margin-bottom:1rem;">
+    Tracking database is offline — emails will still send, but contacts won't be saved until MySQL is running.
+  </div>
+  {% endif %}
+
+  <!-- ══ STEP 1: AI Generation ══ -->
+  <div class="card ai-card">
+    <h2>Step 1 — Generate email with AI</h2>
+
+    <div class="two-col">
+      <div class="field">
+        <label class="ai-label" for="resume_text">Your resume (paste as plain text)</label>
+        <textarea class="ta-resume" id="resume_text" name="resume_text" placeholder="Paste your resume text here…"></textarea>
+        <p class="hint">Saved in browser — only paste once.</p>
+      </div>
+      <div class="field">
+        <label class="ai-label" for="job_description">Job description (paste full text)</label>
+        <textarea class="ta-jd" id="job_description" name="job_description" placeholder="Paste the job description here…"></textarea>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label class="ai-label" for="recipient_type">Who are you sending to?</label>
+        <select id="recipient_type" name="recipient_type">
+          <option value="recruiter">Recruiter</option>
+          <option value="cmu_alumni">CMU Alumni</option>
+          <option value="it_employee">Employee working in IT department</option>
+          <option value="other">Other</option>
+        </select>
+        <div id="other-position">
+          <input type="text" id="custom_position" name="custom_position" placeholder="Their position / role (e.g. Engineering Manager)">
+        </div>
+      </div>
+      <div class="field" style="flex:0; display:flex; align-items:flex-end; padding-bottom:1rem;">
+        <button type="button" class="btn-purple" id="btn-generate">✦ Generate email</button>
+      </div>
+    </div>
+    <p class="status-msg" id="gen-status"></p>
+  </div>
+
+  <!-- ══ STEP 2: Review & Send ══ -->
+  <form id="email-form" enctype="multipart/form-data">
+    <div class="card">
+      <h2>Step 2 — Review, add recipients &amp; send</h2>
+
+      <div class="field">
+        <label>Send from (fixed)</label>
+        <input type="text" class="locked" value="{{ from_display }}" readonly>
+        <input type="hidden" name="from_email" value="{{ default_from }}">
+      </div>
+
+      <div class="field">
+        <label for="company_name">Company name (for tracking)</label>
+        <input type="text" id="company_name" name="company_name" placeholder="e.g. Ford Motor Company">
+      </div>
+
+      <div class="field">
+        <label for="subject">Subject</label>
+        <input type="text" id="subject" name="subject" value="{{ default_subject }}" required>
+      </div>
+
+      <div class="field">
+        <label for="body_template">Email body — <code>{{"{{"}}name{{"}}"}}</code> is replaced with each recipient's name</label>
+        <textarea class="ta-body" id="body_template" name="body_template" required>{{ default_body }}</textarea>
+      </div>
+
+      <hr class="divider">
+
+      <div class="field">
+        <label for="recipients">Recipients — one per line: <code>email,name</code></label>
+        <textarea id="recipients" name="recipients" placeholder="riley@company.com,Riley&#10;jane@other.com,Jane" required></textarea>
+      </div>
+
+      <div class="field">
+        <label for="resume">Resume attachment (PDF)</label>
+        <input type="file" id="resume" name="resume" accept=".pdf,.doc,.docx"
+               style="color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:0.5rem;width:100%">
+      </div>
+
+      <div class="field">
+        <label for="delay_seconds">Delay between emails (seconds)</label>
+        <input type="number" id="delay_seconds" name="delay_seconds" value="5" min="0" max="120" step="1">
+      </div>
+
+      <!-- Send mode toggle -->
+      <div class="field" style="margin-bottom:0.75rem;">
+        <label style="margin-bottom:0.5rem;">Send mode</label>
+        <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap;">
+          <label style="display:flex; align-items:center; gap:0.4rem; color:var(--text); font-size:0.95rem; cursor:pointer;">
+            <input type="radio" name="send_mode" value="now" id="mode-now" checked
+                   style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
+            Send now
+          </label>
+          <label style="display:flex; align-items:center; gap:0.4rem; color:var(--text); font-size:0.95rem; cursor:pointer;">
+            <input type="radio" name="send_mode" value="schedule" id="mode-schedule"
+                   style="width:16px;height:16px;accent-color:var(--purple);cursor:pointer;">
+            Schedule for later
+          </label>
+        </div>
+        <div id="schedule-picker" style="display:none; margin-top:0.75rem;">
+          <label for="scheduled_at" class="ai-label">Send at (your local time)</label>
+          <input type="datetime-local" id="scheduled_at" name="scheduled_at"
+                 style="max-width:280px; background:var(--bg); border:1px solid var(--border);
+                        border-radius:6px; color:var(--text); padding:0.6rem 0.75rem; font-size:0.95rem;">
+          <p class="hint">Outlook will hold the email and send it at the chosen time.</p>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="button" class="btn-secondary" id="btn-preview">Preview first email</button>
+        <button type="button" class="btn-primary" id="btn-send" {% if not status.can_auto_send %}disabled{% endif %}>
+          Send to all recipients
+        </button>
+        <button type="button" class="btn-secondary" id="btn-eml">Prepare .eml files (manual)</button>
+      </div>
+      <p class="status-msg" id="send-status"></p>
+      <div id="preview-box"></div>
+      <div id="results-box"></div>
+    </div>
+  </form>
+</div>
+
+<script>
+  // ── DOM refs ──────────────────────────────────────────────────────────────
+  const form         = document.getElementById("email-form");
+  const subjectEl    = document.getElementById("subject");
+  const bodyEl       = document.getElementById("body_template");
+  const recipientsEl = document.getElementById("recipients");
+  const genStatus    = document.getElementById("gen-status");
+  const sendStatus   = document.getElementById("send-status");
+  const previewBox   = document.getElementById("preview-box");
+  const resultsBox   = document.getElementById("results-box");
+  const btnGenerate  = document.getElementById("btn-generate");
+  const btnPreview   = document.getElementById("btn-preview");
+  const btnSend      = document.getElementById("btn-send");
+  const btnEml       = document.getElementById("btn-eml");
+  const btnLogin     = document.getElementById("btn-owa-login");
+  const btnLogout    = document.getElementById("btn-owa-logout");
+  const badge        = document.getElementById("signin-badge");
+  const statusBar    = document.getElementById("status-bar");
+  const recipientSel = document.getElementById("recipient_type");
+  const otherDiv     = document.getElementById("other-position");
+  const resumeTA     = document.getElementById("resume_text");
+  const jdTA         = document.getElementById("job_description");
+  const modeNow      = document.getElementById("mode-now");
+  const modeSched    = document.getElementById("mode-schedule");
+  const schedPicker  = document.getElementById("schedule-picker");
+  const scheduledAt  = document.getElementById("scheduled_at");
+
+  let canSend = {{ "true" if status.can_auto_send else "false" }};
+
+  // ── Send mode toggle ──────────────────────────────────────────────────────
+  // Set datetime-local min to now
+  function setMinDateTime() {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    scheduledAt.min = now.toISOString().slice(0, 16);
+    if (!scheduledAt.value) {
+      // Default to 1 hour from now
+      now.setHours(now.getHours() + 1);
+      scheduledAt.value = now.toISOString().slice(0, 16);
+    }
+  }
+
+  document.querySelectorAll("input[name='send_mode']").forEach(radio => {
+    radio.addEventListener("change", () => {
+      const isSchedule = modeSched.checked;
+      schedPicker.style.display = isSchedule ? "block" : "none";
+      if (isSchedule) {
+        setMinDateTime();
+        btnSend.textContent = "Schedule for all recipients";
+        btnSend.style.background = "var(--purple)";
+      } else {
+        scheduledAt.value = "";
+        btnSend.textContent = "Send to all recipients";
+        btnSend.style.background = "";
+      }
+    });
+  });
+
+  // ── Persist resume text in localStorage ──────────────────────────────────
+  const RESUME_KEY = "cold_email_resume_text";
+  if (localStorage.getItem(RESUME_KEY)) {
+    resumeTA.value = localStorage.getItem(RESUME_KEY);
+  }
+  resumeTA.addEventListener("input", () => {
+    localStorage.setItem(RESUME_KEY, resumeTA.value);
+  });
+
+  // ── Show/hide "Other" position input ─────────────────────────────────────
+  recipientSel.addEventListener("change", () => {
+    otherDiv.style.display = recipientSel.value === "other" ? "block" : "none";
+  });
+
+  // ── Outlook sign-in ───────────────────────────────────────────────────────
+  let loginPoller = null;
+
+  function startLoginPoll() {
+    loginPoller = setInterval(async () => {
+      const res  = await fetch("/auth/owa-status");
+      const data = await res.json();
+      if (data.logged_in) {
+        clearInterval(loginPoller);
+        badge.textContent = "Signed in ✓";
+        badge.className   = "badge-ok";
+        btnLogin.style.display  = "none";
+        btnLogout.style.display = "";
+        statusBar.textContent   = "Signed in to Outlook Web — browser Send works.";
+        canSend = true;
+        btnSend.disabled = false;
+        genStatus.textContent = "";
+      } else if (data.error) {
+        clearInterval(loginPoller);
+        alert("Sign-in error: " + data.error);
+      }
+    }, 3000);
+  }
+
+  btnLogin.addEventListener("click", async () => {
+    btnLogin.innerHTML = '<span class="spinner"></span>Opening browser…';
+    btnLogin.disabled = true;
+    try {
+      const res  = await fetch("/auth/owa-login", { method: "POST" });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      statusBar.textContent = "Browser opened — sign in and approve MFA…";
+      startLoginPoll();
+    } catch (e) {
+      btnLogin.innerHTML = "Sign in to Outlook";
+      btnLogin.disabled  = false;
+      alert(e.message || "Could not start sign-in");
+    }
+  });
+
+  btnLogout.addEventListener("click", async () => {
+    await fetch("/auth/owa-logout", { method: "POST" });
+    badge.textContent      = "Not signed in";
+    badge.className        = "badge-off";
+    btnLogin.style.display  = "";
+    btnLogout.style.display = "none";
+    canSend = false;
+    btnSend.disabled = true;
+    statusBar.textContent = "Sign in to Outlook Web to enable sending.";
+  });
+
+  // ── AI generation ─────────────────────────────────────────────────────────
+  btnGenerate.addEventListener("click", async () => {
+    const resumeText  = resumeTA.value.trim();
+    const jdText      = jdTA.value.trim();
+    if (!resumeText) { alert("Paste your resume text first."); return; }
+    if (!jdText)      { alert("Paste the job description first."); return; }
+
+    btnGenerate.innerHTML = '<span class="spinner"></span>Generating…';
+    btnGenerate.disabled  = true;
+    genStatus.textContent = "Asking Groq to write your email…";
+
+    const fd = new FormData();
+    fd.append("resume_text",     resumeText);
+    fd.append("job_description", jdText);
+    fd.append("recipient_type",  recipientSel.value);
+    fd.append("custom_position", document.getElementById("custom_position").value.trim());
+
+    try {
+      const res  = await fetch("/api/generate", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+
+      subjectEl.value = data.subject;
+      bodyEl.value    = data.body;
+      if (data.company_name) {
+        document.getElementById("company_name").value = data.company_name;
+      }
+      genStatus.textContent = "✓ Email generated — review and edit below, then add recipients and send.";
+      genStatus.style.color = "var(--success)";
+      // Scroll to send section
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+    } catch (e) {
+      genStatus.textContent = "Error: " + (e.message || "Generation failed");
+      genStatus.style.color = "var(--error)";
+    } finally {
+      btnGenerate.innerHTML = "✦ Generate email";
+      btnGenerate.disabled  = false;
+    }
+  });
+
+  // ── Send helpers ──────────────────────────────────────────────────────────
+  function setSendBusy(busy, msg) {
+    btnPreview.disabled = busy;
+    btnSend.disabled    = busy || !canSend;
+    btnEml.disabled     = busy;
+    sendStatus.textContent = msg || "";
+    sendStatus.style.color = "";
+  }
+
+  function showResults(data) {
+    let html = "";
+    for (const r of data.results) {
+      const cls = r.success ? "ok" : "fail";
+      html += `<div class="${cls}">${r.success ? "✓" : "✗"} ${r.name} &lt;${r.email}&gt; — ${r.message}</div>`;
+    }
+    if (data.output_folder) {
+      html += `<div class="ok" style="margin-top:.5rem">Folder: ${data.output_folder}</div>`;
+    }
+    resultsBox.innerHTML = html;
+    resultsBox.style.display = "block";
+  }
+
+  btnPreview.addEventListener("click", async () => {
+    setSendBusy(true, "Building preview…");
+    previewBox.style.display = "none";
+    resultsBox.style.display = "none";
+    try {
+      const res  = await fetch("/api/preview", { method: "POST", body: new FormData(form) });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      const p = data.preview;
+      previewBox.textContent =
+        `From: ${p.from_email}\nTo:   ${p.to}\n(${p.total} total)\n\nSubject: ${p.subject}\n\n---\n\n${p.body}`;
+      previewBox.style.display = "block";
+      setSendBusy(false, `Preview 1 of ${p.total}.`);
+    } catch (e) {
+      setSendBusy(false, "");
+      alert(e.message || "Preview failed");
+    }
+  });
+
+  btnSend.addEventListener("click", async () => {
+    const isSchedule = modeSched.checked;
+    if (isSchedule && !scheduledAt.value) {
+      alert("Please pick a date and time to schedule the emails.");
+      return;
+    }
+    const confirmMsg = isSchedule
+      ? `Schedule all emails to send at ${scheduledAt.value.replace("T", " ")}?`
+      : "Send all emails now from your CMU Outlook account?";
+    if (!confirm(confirmMsg)) return;
+    const busyMsg = isSchedule
+      ? "Scheduling — Outlook browser will open briefly…"
+      : "Sending — Outlook browser will open briefly…";
+    setSendBusy(true, busyMsg);
+    previewBox.style.display = "none";
+    resultsBox.style.display = "none";
+    try {
+      const fd = new FormData(form);
+      fd.append("recipient_type", recipientSel.value);
+      const res  = await fetch("/api/send", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      showResults(data);
+      let doneMsg = modeSched.checked
+        ? `Scheduled: ${data.sent}/${data.total} emails queued in Outlook.`
+        : `Done: ${data.sent}/${data.total} sent. Check Outlook Sent Items.`;
+      if (data.db_available === false) {
+        doneMsg += " (Tracking DB offline — not saved to database.)";
+      } else if (data.tracked != null && data.tracked < data.sent) {
+        doneMsg += ` (${data.tracked}/${data.sent} saved to tracking.)`;
+      }
+      setSendBusy(false, doneMsg);
+    } catch (e) {
+      setSendBusy(false, "");
+      alert(e.message || "Send failed");
+    }
+  });
+
+  btnEml.addEventListener("click", async () => {
+    if (!confirm("Create .eml files? You must click Send in Outlook for each file.")) return;
+    setSendBusy(true, "Creating files…");
+    previewBox.style.display = "none";
+    resultsBox.style.display = "none";
+    try {
+      const res  = await fetch("/api/prepare-eml", { method: "POST", body: new FormData(form) });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error);
+      showResults(data);
+      setSendBusy(false, `Created ${data.sent} file(s).`);
+    } catch (e) {
+      setSendBusy(false, "");
+      alert(e.message || "Failed");
+    }
+  });
+</script>
+</body>
+</html>
