@@ -11,8 +11,8 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 
 import eml_sender
 import outlook_sender
-import playwright_sender
 import smtp_sender
+from runtime import is_serverless
 
 
 def detect_outlook_kind() -> str:
@@ -37,9 +37,40 @@ def com_available() -> bool:
 
 
 def get_status() -> dict:
+    smtp_ok = smtp_sender.is_configured()
+    if is_serverless():
+        if smtp_ok:
+            return {
+                "outlook_kind": "cloud",
+                "com_available": False,
+                "smtp_configured": True,
+                "owa_logged_in": False,
+                "backend": "smtp",
+                "can_auto_send": True,
+                "can_send": True,
+                "message": (
+                    "Hosted on Vercel with SMTP configured — sending is enabled. "
+                    "Outlook Web sign-in only works on your local machine."
+                ),
+            }
+        return {
+            "outlook_kind": "cloud",
+            "com_available": False,
+            "smtp_configured": False,
+            "owa_logged_in": False,
+            "backend": "none",
+            "can_auto_send": False,
+            "can_send": True,
+            "message": (
+                "Hosted on Vercel — generate and preview emails here. "
+                "To send, run the app locally or add SMTP env vars in Vercel."
+            ),
+        }
+
+    import playwright_sender
+
     kind = detect_outlook_kind()
     com_ok = com_available()
-    smtp_ok = smtp_sender.is_configured()
     owa_ok = playwright_sender.is_logged_in()
 
     if com_ok:
@@ -87,9 +118,12 @@ def send_batch(*, mode: str = "auto", open_in_outlook: bool = True, scheduled_at
         results = outlook_sender.send_batch(**kwargs)
         return results, None
 
-    if mode == "owa" or (mode == "auto" and playwright_sender.is_logged_in()):
-        results = playwright_sender.send_batch(scheduled_at=scheduled_at, **kwargs)
-        return results, None
+    if not is_serverless():
+        import playwright_sender
+
+        if mode == "owa" or (mode == "auto" and playwright_sender.is_logged_in()):
+            results = playwright_sender.send_batch(scheduled_at=scheduled_at, **kwargs)
+            return results, None
 
     if mode == "smtp" or (mode == "auto" and smtp_sender.is_configured()):
         results = smtp_sender.send_batch(**kwargs)

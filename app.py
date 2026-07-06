@@ -16,16 +16,16 @@ load_dotenv(Path(__file__).resolve().parent / ".env")
 import email_backend
 import groq_generator
 import database
-import playwright_sender
 import smtp_sender
 from outlook_sender import preview_first
+from runtime import data_dir, ensure_dir, is_serverless
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
 BASE_DIR = Path(__file__).resolve().parent
-UPLOAD_DIR = BASE_DIR / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
+UPLOAD_DIR = ensure_dir(data_dir() / "uploads")
+_db_initialized = False
 
 DEFAULT_FROM = "surti1mr@cmich.edu"
 DEFAULT_SUBJECT = "Introduction - AI Software Engineer (Mayank Surti)"
@@ -75,6 +75,19 @@ def _save_resume() -> tuple[str, str] | None:
     return str(path), original_name
 
 
+def _ensure_db() -> None:
+    global _db_initialized
+    if _db_initialized:
+        return
+    _db_initialized = True
+    database.init_db()
+
+
+@app.before_request
+def _prepare_request():
+    _ensure_db()
+
+
 @app.route("/")
 def index():
     status = email_backend.get_status()
@@ -86,6 +99,7 @@ def index():
         default_body=DEFAULT_BODY,
         status=status,
         db_available=database.is_available(),
+        is_serverless=is_serverless(),
     )
 
 
@@ -98,6 +112,8 @@ def _run_login():
     global _login_status
     _login_status = {"running": True, "done": False, "error": None}
     try:
+        import playwright_sender
+
         playwright_sender.do_browser_login()
         _login_status = {"running": False, "done": True, "error": None}
     except Exception as exc:
@@ -106,6 +122,11 @@ def _run_login():
 
 @app.route("/auth/owa-login", methods=["POST"])
 def auth_owa_login():
+    if is_serverless():
+        return jsonify({
+            "ok": False,
+            "error": "Outlook Web sign-in only works on your local Windows machine.",
+        }), 400
     if _login_status["running"]:
         return jsonify({"ok": False, "error": "Sign-in already in progress"}), 400
     t = threading.Thread(target=_run_login, daemon=True)
@@ -115,6 +136,16 @@ def auth_owa_login():
 
 @app.route("/auth/owa-status")
 def auth_owa_status():
+    if is_serverless():
+        return jsonify({
+            "ok": True,
+            "logged_in": False,
+            "running": False,
+            "done": False,
+            "error": None,
+        })
+    import playwright_sender
+
     logged_in = playwright_sender.is_logged_in()
     return jsonify({
         "ok": True,
@@ -127,8 +158,20 @@ def auth_owa_status():
 
 @app.route("/auth/owa-logout", methods=["POST"])
 def auth_owa_logout():
-    playwright_sender.logout()
+    if not is_serverless():
+        import playwright_sender
+
+        playwright_sender.logout()
     return jsonify({"ok": True})
+
+
+@app.route("/api/health")
+def api_health():
+    return jsonify({
+        "ok": True,
+        "serverless": is_serverless(),
+        "db_available": database.is_available(),
+    })
 
 
 # --- AI email generation ------------------------------------------------------
@@ -276,9 +319,11 @@ def api_open_folder():
     folder = (request.json or {}).get("folder", "")
     path = Path(folder)
     if not path.is_dir() or not str(path.resolve()).startswith(
-        str((BASE_DIR / "generated_emails").resolve())
+        str((data_dir() / "generated_emails").resolve())
     ):
         return jsonify({"ok": False, "error": "Invalid folder"}), 400
+    if not hasattr(os, "startfile"):
+        return jsonify({"ok": False, "error": "Open folder is only available on Windows."}), 400
     os.startfile(str(path))
     return jsonify({"ok": True})
 
@@ -287,7 +332,11 @@ def api_open_folder():
 
 @app.route("/tracking")
 def tracking():
-    return render_template("tracking.html", db_available=database.is_available())
+    return render_template(
+        "tracking.html",
+        db_available=database.is_available(),
+        is_serverless=is_serverless(),
+    )
 
 
 @app.route("/api/contacts", methods=["GET"])

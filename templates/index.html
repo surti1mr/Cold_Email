@@ -95,6 +95,14 @@
   <h1>Cold Email Sender</h1>
   <p class="sub">Generate personalized emails with AI, then send directly from your CMU Outlook.</p>
 
+  {% if is_serverless %}
+  <div class="alert alert-warn" style="margin-bottom:1rem;">
+    <strong>Cloud mode.</strong> Generate and preview emails here. Outlook Web sign-in and sending work on your local Windows app. Add <code>GROQ_API_KEY</code> in Vercel env vars for AI generation.
+  </div>
+  <div class="card">
+    <span style="font-size:0.9rem; color:var(--muted);">{{ status.message }}</span>
+  </div>
+  {% else %}
   <!-- Status + Sign-in -->
   <div class="card">
     <div class="signin-row">
@@ -107,6 +115,7 @@
       <span style="flex:1; font-size:0.85rem; color:var(--muted);" id="status-bar">{{ status.message }}</span>
     </div>
   </div>
+  {% endif %}
 
   {% if not db_available %}
   <div class="alert alert-warn" style="margin-bottom:1rem;">
@@ -307,6 +316,7 @@
   // ── Outlook sign-in ───────────────────────────────────────────────────────
   let loginPoller = null;
 
+  if (btnLogin && btnLogout && badge && statusBar) {
   function startLoginPoll() {
     loginPoller = setInterval(async () => {
       const res  = await fetch("/auth/owa-status");
@@ -354,6 +364,7 @@
     btnSend.disabled = true;
     statusBar.textContent = "Sign in to Outlook Web to enable sending.";
   });
+  }
 
   // ── AI generation ─────────────────────────────────────────────────────────
   btnGenerate.addEventListener("click", async () => {

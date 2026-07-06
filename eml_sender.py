@@ -19,9 +19,9 @@ from outlook_sender import (
     parse_recipients,
     render_template,
 )
+from runtime import data_dir
 
-BASE_DIR = Path(__file__).resolve().parent
-OUTPUT_ROOT = BASE_DIR / "generated_emails"
+OUTPUT_ROOT = data_dir() / "generated_emails"
 
 CLASSIC_OUTLOOK_PATHS = (
     Path(r"C:\Program Files\Microsoft Office\root\Office16\OUTLOOK.EXE"),

@@ -12,12 +12,23 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
-
 from outlook_sender import SendResult, parse_recipients, render_template
+from runtime import data_dir, is_serverless
 
-BASE_DIR = Path(__file__).resolve().parent
-SESSION_FILE = BASE_DIR / "owa_session.json"
+SESSION_FILE = data_dir() / "owa_session.json"
+
+
+def _require_local_browser(action: str) -> None:
+    if is_serverless():
+        raise RuntimeError(
+            f"{action} is not available on Vercel. Run the app locally to sign in and send email."
+        )
+
+
+def _sync_playwright():
+    from playwright.sync_api import sync_playwright
+
+    return sync_playwright
 OWA_URL = "https://outlook.cloud.microsoft/mail/"
 COMPOSE_TIMEOUT = 30_000
 SEND_TIMEOUT = 15_000
@@ -39,9 +50,10 @@ def _session_exists() -> bool:
 
 def is_logged_in() -> bool:
     """Quick non-interactive check — try to load OWA without a login page."""
-    if not _session_exists():
+    if is_serverless() or not _session_exists():
         return False
     try:
+        sync_playwright = _sync_playwright()
         with sync_playwright() as pw:
             browser = pw.chromium.launch(headless=True)
             ctx = browser.new_context(storage_state=json.loads(SESSION_FILE.read_text()))
@@ -57,6 +69,8 @@ def is_logged_in() -> bool:
 
 def do_browser_login() -> None:
     """Open a visible browser, let the user sign in with MFA, then save the session."""
+    _require_local_browser("Outlook Web sign-in")
+    sync_playwright = _sync_playwright()
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=False, slow_mo=50)
         ctx = browser.new_context()
@@ -397,6 +411,7 @@ def send_batch(
     scheduled_at: str | None = None,
     on_progress: Callable[[int, int, SendResult], None] | None = None,
 ) -> list[SendResult]:
+    _require_local_browser("Outlook Web sending")
     if not _session_exists():
         raise RuntimeError(
             "Not signed in to Outlook Web. Click 'Sign in to Outlook' on the page first."
@@ -420,6 +435,7 @@ def send_batch(
         shutil.copy2(src, batch_file)
         batch_attachment_path = str(batch_file)
 
+    sync_playwright = _sync_playwright()
     with sync_playwright() as pw:
         browser = pw.chromium.launch(headless=False, slow_mo=30)
         ctx = browser.new_context(
